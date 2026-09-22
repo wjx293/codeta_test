@@ -1,0 +1,18 @@
+{
+  "Version": "1",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["oss:HeadObject", "oss:GetObject"],
+      "Resource": [
+        "acs:oss:*:*:template-mall-wjx/templates/*",
+        "acs:oss:*:*:template-mall-wjx/thumbnails/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "acs:ram::1310247281671820:role/template-mall-sts-role"
+    }
+  ]
+}

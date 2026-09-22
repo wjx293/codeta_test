@@ -1,0 +1,258 @@
+syntax = "proto3";
+
+package template_order.v1;
+
+option go_package = "template-mall/TemplateOrderServer/api/proto;template_order_pb";
+
+import "google/protobuf/timestamp.proto";
+
+// ============================================================
+// 枚举
+// ============================================================
+
+// 模板上下架状态（DB: 0=下架 1=上架）
+enum TemplateStatus {
+  TEMPLATE_STATUS_UNSPECIFIED = 0;
+  TEMPLATE_STATUS_OFFLINE = 1;
+  TEMPLATE_STATUS_ONLINE = 2;
+}
+
+// 订单状态（DB 值与枚举值一致）
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_UNPAID = 1;       // 未支付
+  ORDER_STATUS_PAID = 2;         // 已获得下载资格
+  ORDER_STATUS_CANCELLED = 3;    // 已取消
+}
+
+// 订单类型（DB 值与枚举值一致）
+enum OrderType {
+  ORDER_TYPE_UNSPECIFIED = 0;
+  ORDER_TYPE_FREE = 1;           // 免费
+  ORDER_TYPE_MEMBER = 2;         // 会员
+  ORDER_TYPE_RETAIL = 3;         // 零售
+}
+
+// ============================================================
+// 通用
+// ============================================================
+
+message BaseResponse {
+  int32 code = 1;     // 0=成功，非 0=业务错误码
+  string message = 2;
+}
+
+// ============================================================
+// 用户与认证
+// ============================================================
+
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+// 登出请求：吊销该用户所有 refresh_token（对应 FR-006）
+message RevokeRefreshTokensRequest {
+  int64 user_id = 1;
+}
+
+message AuthResponse {
+  BaseResponse base = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+  int64 user_id = 4;
+  string username = 5;
+  bool is_member = 6;
+}
+
+message User {
+  int64 id = 1;
+  string username = 2;
+  bool is_member = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+// B 端管理员检索用户（如设置会员时）
+message ListUsersRequest {
+  optional int32 page = 1;
+  optional int32 page_size = 2;
+  string username = 3;       // 模糊搜索（可选）
+}
+
+message ListUsersResponse {
+  BaseResponse base = 1;
+  repeated User users = 2;
+  int64 total = 3;
+}
+
+// ============================================================
+// 模板
+// ============================================================
+
+message Template {
+  int64 id = 1;
+  string template_no = 2;
+  string name = 3;
+  string description = 4;
+  bool is_free = 5;
+  int64 price = 6;           // 分
+  TemplateStatus status = 7;
+  string file_type = 8;
+  int64 file_size = 9;
+  string thumbnail_download_url = 10;  // 短期预签名（仅列表/详情返回时填充）
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message CreateTemplateRequest {
+  string name = 1;
+  string description = 2;
+  bool is_free = 3;
+  int64 price = 4;           // 分
+  string oss_type = 5;
+  string bucket_name = 6;
+  string original_filename = 7;
+  string file_type = 8;
+  int64 file_size = 9;
+  string file_oss_key = 10;
+  string thumbnail_oss_key = 11;
+  int64 thumbnail_file_size = 12;
+}
+
+message UpdateTemplateRequest {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  bool is_free = 4;
+  int64 price = 5;
+  string thumbnail_oss_key = 6;
+  int64 thumbnail_file_size = 7;
+}
+
+message ListTemplatesRequest {
+  optional int32 page = 1;
+  optional int32 page_size = 2;
+  optional TemplateStatus status = 3;   // 未传=全部
+}
+
+message ListTemplatesResponse {
+  BaseResponse base = 1;
+  repeated Template templates = 2;
+  int64 total = 3;
+}
+
+message GetTemplateRequest {
+  int64 id = 1;
+}
+
+message GetTemplateResponse {
+  BaseResponse base = 1;
+  Template template = 2;
+}
+
+// 上下架模板（B 端）
+message UpdateTemplateStatusRequest {
+  int64 id = 1;
+  TemplateStatus status = 2;
+}
+
+// ============================================================
+// 下载与订单
+// ============================================================
+
+message DownloadTemplateRequest {
+  int64 user_id = 1;
+  int64 template_id = 2;
+}
+
+message DownloadResponse {
+  BaseResponse base = 1;
+  string order_no = 2;
+  OrderType order_type = 3;
+  OrderStatus order_status = 4;
+  int64 price_snapshot = 5;
+  string download_url = 6;    // 仅 order_status=PAID 时返回
+  string payment_no = 7;      // 仅零售未支付时返回
+}
+
+message ListOrdersRequest {
+  optional int64 user_id = 1;   // 未传=不按用户筛选（管理员查全部）
+  optional OrderStatus status = 2;  // 未传=全部
+  optional int32 page = 3;
+  optional int32 page_size = 4;
+  // 管理员用：按用户名/时间筛选
+  string username = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+}
+
+message Order {
+  int64 id = 1;
+  string order_no = 2;
+  int64 user_id = 3;
+  string username = 4;
+  int64 template_id = 5;
+  string template_name = 6;
+  OrderType order_type = 7;
+  int64 price_snapshot = 8;   // 分
+  OrderStatus status = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message ListOrdersResponse {
+  BaseResponse base = 1;
+  repeated Order orders = 2;
+  int64 total = 3;
+}
+
+message CancelOrderRequest {
+  int64 user_id = 1;
+  string order_no = 2;
+}
+
+// ============================================================
+// 会员
+// ============================================================
+
+message SetMemberRequest {
+  int64 user_id = 1;
+  bool is_member = 2;
+}
+
+// ============================================================
+// 服务定义
+// ============================================================
+
+service TemplateOrderService {
+  // 用户
+  rpc Register(RegisterRequest) returns (AuthResponse);
+  rpc Login(LoginRequest) returns (AuthResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
+  rpc RevokeRefreshTokens(RevokeRefreshTokensRequest) returns (BaseResponse);  // C 端登出（FR-006）
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);                 // B 端检索用户
+
+  // 模板
+  rpc CreateTemplate(CreateTemplateRequest) returns (BaseResponse);
+  rpc UpdateTemplate(UpdateTemplateRequest) returns (BaseResponse);
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
+  rpc GetTemplate(GetTemplateRequest) returns (GetTemplateResponse);
+  rpc UpdateTemplateStatus(UpdateTemplateStatusRequest) returns (BaseResponse);
+
+  // 下载与订单
+  rpc DownloadTemplate(DownloadTemplateRequest) returns (DownloadResponse);
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (BaseResponse);
+
+  // 会员
+  rpc SetMember(SetMemberRequest) returns (BaseResponse);
+}

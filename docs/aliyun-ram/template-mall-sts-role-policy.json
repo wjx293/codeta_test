@@ -1,0 +1,21 @@
+{
+  "Version": "1",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["oss:PutObject"],
+      "Resource": [
+        "acs:oss:*:*:template-mall-wjx/templates/*",
+        "acs:oss:*:*:template-mall-wjx/thumbnails/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["oss:HeadObject"],
+      "Resource": [
+        "acs:oss:*:*:template-mall-wjx/templates/*",
+        "acs:oss:*:*:template-mall-wjx/thumbnails/*"
+      ]
+    }
+  ]
+}
